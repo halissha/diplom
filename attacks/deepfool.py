@@ -5,7 +5,7 @@ __all__ = ['deepfool']
 
 @tf.function
 def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
-             clip_min=0.0, clip_max=1.0, min_prob=0.0):
+             clip_min=0.0, clip_max=1.0, min_prob=0.95):
     # tf.compat.v1.disable_eager_execution()
     """DeepFool implementation in TensorFlow.
     The original DeepFool will stop whenever we successfully cross the
@@ -162,7 +162,7 @@ def _deepfool2_batch(model, x, epochs, eta, clip_min, clip_max):
 
 
 
-
+@tf.function
 def _deepfoolx_batch(model, x, epochs, eta, clip_min, clip_max):
     """DeepFool for multi-class classifiers in batch mode.
     """
