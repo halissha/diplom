@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import tensorflow as tf
 from attacks.deepfool import deepfool
@@ -10,7 +11,9 @@ class ModelData:
         match dataset:
             case "mnist":
                 self.X_train, self.y_train, self.X_test, self.y_test, self.img_size, self.img_chan = get_mnist_data()
-                self.prepare_data()
+            case "cifar10":
+                self.X_train, self.y_train, self.X_test, self.y_test, self.img_size, self.img_chan = get_cifar10_data()
+        self.prepare_data()
 
     def prepare_data(self):
         self.X_train = np.reshape(self.X_train, [-1, self.img_size, self.img_size, self.img_chan])
@@ -36,9 +39,14 @@ class ModelData:
             case "CustomModel":
                 match attack:
                     case "deepfool":
-                        self.X_adv = model.mnist_deepfool(X_data=self.X_test, epochs=3, batch_size=128)
+                        self.X_adv = model.mnist_deepfool(X_data=self.X_test, epochs=3, batch_size=63)
 
 def get_mnist_data():
     (Xtrain, ytrain), (Xtest, ytest) = tf.keras.datasets.mnist.load_data()
     img_size, img_chan = 28, 1
+    return Xtrain, ytrain, Xtest, ytest, img_size, img_chan
+
+def get_cifar10_data():
+    (Xtrain, ytrain), (Xtest, ytest) = tf.keras.datasets.cifar10.load_data()
+    img_size, img_chan = 32, 3
     return Xtrain, ytrain, Xtest, ytest, img_size, img_chan

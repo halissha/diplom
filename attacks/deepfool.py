@@ -5,7 +5,7 @@ __all__ = ['deepfool']
 
 @tf.function
 def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
-             clip_min=0.0, clip_max=1.0, min_prob=0.95):
+             clip_min=0.0, clip_max=1.0, min_prob=0.00):
     # tf.compat.v1.disable_eager_execution()
     """DeepFool implementation in TensorFlow.
     The original DeepFool will stop whenever we successfully cross the
@@ -37,7 +37,7 @@ def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
         delta = fn(model, x, eta=eta, epochs=epochs, clip_min=clip_min,
                    clip_max=clip_max)
     else:
-        @tf.function
+        @tf.function(jit_compile=True)
         def _f(xi):
             xi = tf.expand_dims(xi, axis=0)
             z = _deepfoolx(model, xi, eta=eta, epochs=epochs, clip_min=clip_min,

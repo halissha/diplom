@@ -1,5 +1,6 @@
 import argparse
-from models.custom.custom_model import CustomModel
+from models.custommodel.custom_model import CustomModel
+from models.alexnet.alexnet import AlexNet
 
 class ArgumentParser:
     def __init__(self):
@@ -14,6 +15,10 @@ class ArgumentParser:
                             help='Validation split', default=0.1)
         self.parser.add_argument('--weights', type=bool,
                                  help='Is there weights for this model', default=False)
+        self.parser.add_argument('--epochs', type=int,
+                                 help='Number of epochs to train model', default=5)
+        self.parser.add_argument('--batches', type=int,
+                                 help='Number of epochs to train model', default=32)
         self.__args = self.get_args()
 
     def get_args(self):
@@ -22,8 +27,11 @@ class ArgumentParser:
     def get_model(self):
         match self.__args.model:
             case "custom":
-                mnist = CustomModel()
-                return mnist
+                model = CustomModel()
+                return model
+            case "alexnet":
+                model = AlexNet()
+                return model
 
     def get_attack(self):
         return self.__args.attack
@@ -36,3 +44,9 @@ class ArgumentParser:
 
     def get_weights(self):
         return self.__args.weights
+
+    def get_epochs(self):
+        return self.__args.epochs
+
+    def get_batches(self):
+        return self.__args.batches

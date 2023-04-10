@@ -10,7 +10,7 @@ if __name__ == "__main__":
     model_data = ModelData(dataset=parser.get_dataset_name())
     model_data.split_data(val_split=parser.get_val_split())
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.train(batch_size=128, epochs=5,
+    model.train(batch_size=parser.get_batches(), epochs=parser.get_epochs(),
                 train_data=(model_data.X_train, model_data.y_train),
                 validation_data=(model_data.X_valid, model_data.y_valid),
                 weights=parser.get_weights())
