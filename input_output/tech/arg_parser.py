@@ -1,6 +1,6 @@
 import argparse
-from models.custommodel.custom_model import CustomModel
-from models.alexnet.alexnet import AlexNet
+from models.CustomModel.custom_model import CustomModel
+from models.AlexNet.alexnet import AlexNet
 
 class ArgumentParser:
     def __init__(self):
@@ -16,9 +16,13 @@ class ArgumentParser:
         self.parser.add_argument('--weights', type=bool,
                                  help='Is there weights for this model', default=False)
         self.parser.add_argument('--epochs', type=int,
-                                 help='Number of epochs to train model', default=5)
+                                 help='Number of epochs to train model', default=50)
         self.parser.add_argument('--batches', type=int,
-                                 help='Number of epochs to train model', default=32)
+                                 help='Number of batches', default=32)
+        self.parser.add_argument('--adv_data', type=bool,
+                                 help='Is adversarial data present', default=False)
+        self.parser.add_argument('--save', type=bool,
+                                 help='Do you need to save pictures', default=False)
         self.__args = self.get_args()
 
     def get_args(self):
@@ -50,3 +54,9 @@ class ArgumentParser:
 
     def get_batches(self):
         return self.__args.batches
+
+    def get_adv_data(self):
+        return self.__args.adv_data
+
+    def get_save(self):
+        return self.__args.save

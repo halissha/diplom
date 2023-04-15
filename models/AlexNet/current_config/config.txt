@@ -1,0 +1,8 @@
+CIFAR10
+----------------------------------
+epochs==30
+val_split==0.2
+batch_size==128
+optimizer==Adam(lr=0.001)
+loss=categorical_crossentropy
+----------------------------------
