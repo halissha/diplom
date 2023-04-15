@@ -4,8 +4,8 @@ import tensorflow as tf
 __all__ = ['deepfool']
 
 @tf.function
-def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
-             clip_min=0.0, clip_max=1.0, min_prob=0.95):
+def deepfool(model, x, fgs, noise=False, eta=0.05, epochs=3, batch=False,
+             clip_min=0.0, clip_max=1.0, min_prob=0.8):
     # tf.compat.v1.disable_eager_execution()
     """DeepFool implementation in TensorFlow.
     The original DeepFool will stop whenever we successfully cross the
@@ -20,12 +20,12 @@ def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
     :param eta: Small overshoot value to cross the boundary.
     :param epochs: Maximum epochs to run.
     :param batch: If True, run in batch mode, will always run epochs.
-    :param clip_min: Min clip value for output.
-    :param clip_max: Max clip value for output.
+    :param clip_min: Min clip value for input_output.
+    :param clip_max: Max clip value for input_output.
     :param min_prob: Minimum probability for adversarial samples.
     :return: Adversarials, of the same shape as x.
     """
-    y = tf.stop_gradient(model(x))
+    y = tf.stop_gradient(model(x, fgs))
 
     fns = [[_deepfool2, _deepfool2_batch], [_deepfoolx, _deepfoolx_batch]]
 
@@ -34,13 +34,13 @@ def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
     fn = fns[i][j]
 
     if batch:
-        delta = fn(model, x, eta=eta, epochs=epochs, clip_min=clip_min,
+        delta = fn(model, fgs, x, eta=eta, epochs=epochs, clip_min=clip_min,
                    clip_max=clip_max)
     else:
         @tf.function
         def _f(xi):
             xi = tf.expand_dims(xi, axis=0)
-            z = _deepfoolx(model, xi, eta=eta, epochs=epochs, clip_min=clip_min,
+            z = fn(model, fgs, xi, eta=eta, epochs=epochs, clip_min=clip_min,
                    clip_max=clip_max, min_prob=min_prob)
             return z[0]
         delta = tf.nest.map_structure(tf.stop_gradient, tf.map_fn(_f, x))
@@ -53,11 +53,11 @@ def deepfool(model, x, noise=False, eta=0.01, epochs=3, batch=False,
     return xadv
 
 @tf.function
-def _deepfoolx(model, x, epochs, eta, clip_min, clip_max, min_prob):
+def _deepfoolx(model, fgs, x, epochs, eta, clip_min, clip_max, min_prob):
     """DeepFool for multi-class classifiers.
     Assumes that the final label is the label with the maximum values.
     """
-    y0 = tf.stop_gradient(model(x))
+    y0 = tf.stop_gradient(model(x, fgs))
     y0 = tf.reshape(y0, [-1])
     k0 = tf.argmax(y0)
 
@@ -68,7 +68,7 @@ def _deepfoolx(model, x, epochs, eta, clip_min, clip_max, min_prob):
     @tf.function
     def _cond(i, z):
         xadv = tf.clip_by_value(x + z*(1+eta), clip_min, clip_max)
-        y = tf.reshape(model(xadv), [-1])
+        y = tf.reshape(model(xadv, fgs), [-1])
         p = tf.reduce_max(y)
         k = tf.argmax(y)
         return tf.logical_and(tf.less(i, epochs),
@@ -78,7 +78,7 @@ def _deepfoolx(model, x, epochs, eta, clip_min, clip_max, min_prob):
     @tf.function
     def _body(i, z):
         xadv = tf.clip_by_value(x + z*(1+eta), clip_min, clip_max)
-        y = tf.reshape(model(xadv), [-1])
+        y = tf.reshape(model(xadv, fgs), [-1])
 
         gs = [tf.reshape(tf.gradients(y[i], xadv)[0], [-1])
               for i in range(ydim)]
@@ -113,7 +113,7 @@ def _prod(iterable):
     return ret
 
 
-def _deepfool2(model, x, epochs, eta, clip_min, clip_max, min_prob):
+def _deepfool2(model, fgs, x,epochs, eta, clip_min, clip_max, min_prob):
     """DeepFool for binary classifiers.
     Note that DeepFools that binary classifier outputs +1/-1 instead of 0/1.
     """
@@ -138,7 +138,7 @@ def _deepfool2(model, x, epochs, eta, clip_min, clip_max, min_prob):
     return noise
 
 
-def _deepfool2_batch(model, x, epochs, eta, clip_min, clip_max):
+def _deepfool2_batch(model, fgs, x, epochs, eta, clip_min, clip_max):
     """DeepFool for binary classifiers in batch mode.
     """
     xshape = x.get_shape().as_list()[1:]
@@ -149,7 +149,7 @@ def _deepfool2_batch(model, x, epochs, eta, clip_min, clip_max):
 
     def _body(i, z):
         xadv = tf.clip_by_value(x + z*(1+eta), clip_min, clip_max)
-        y = tf.reshape(model(xadv), [-1])
+        y = tf.reshape(model(xadv, fgs), [-1])
         g = tf.gradients(y, xadv)[0]
         n = tf.norm(tf.reshape(g, [-1, dim]), axis=1) + 1e-10
         d = tf.reshape(-y / n, [-1] + [1]*len(xshape))
@@ -163,10 +163,10 @@ def _deepfool2_batch(model, x, epochs, eta, clip_min, clip_max):
 
 
 @tf.function
-def _deepfoolx_batch(model, x, epochs, eta, clip_min, clip_max):
+def _deepfoolx_batch(model, fgs, x, epochs, eta, clip_min, clip_max):
     """DeepFool for multi-class classifiers in batch mode.
     """
-    y0 = tf.stop_gradient(model(x))
+    y0 = tf.stop_gradient(model(x, fgs))
     B, ydim = tf.shape(y0)[0], y0.get_shape().as_list()[1]
 
     k0 = tf.argmax(y0, axis=1, output_type=tf.int32)
@@ -183,7 +183,7 @@ def _deepfoolx_batch(model, x, epochs, eta, clip_min, clip_max):
 
     def _body(i, z):
         xadv = tf.clip_by_value(x + z*(1+eta), clip_min, clip_max)
-        y = model(xadv)
+        y = model(xadv, fgs)
 
         gs = [tf.gradients(y[:, i], xadv)[0] for i in range(ydim)]
         g = tf.stack(gs, axis=0)
@@ -209,4 +209,4 @@ def _deepfoolx_batch(model, x, epochs, eta, clip_min, clip_max):
 
     _, noise = tf.while_loop(_cond, _body, [0, tf.zeros_like(x)],
                              name='deepfoolx_batch', back_prop=False)
-    return noise
+    return
